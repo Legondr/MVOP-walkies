@@ -11,6 +11,38 @@
 part of 'router.dart';
 
 /// generated route for
+/// [AuthScreen]
+class AuthRoute extends PageRouteInfo<void> {
+  const AuthRoute({List<PageRouteInfo>? children})
+    : super(AuthRoute.name, initialChildren: children);
+
+  static const String name = 'AuthRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const AuthScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [ForgotPasswordScreen]
+class ForgotPasswordRoute extends PageRouteInfo<void> {
+  const ForgotPasswordRoute({List<PageRouteInfo>? children})
+    : super(ForgotPasswordRoute.name, initialChildren: children);
+
+  static const String name = 'ForgotPasswordRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const ForgotPasswordScreen();
+    },
+  );
+}
+
+/// generated route for
 /// [HomeScreen]
 class HomeRoute extends PageRouteInfo<void> {
   const HomeRoute({List<PageRouteInfo>? children})
@@ -28,32 +60,74 @@ class HomeRoute extends PageRouteInfo<void> {
 
 /// generated route for
 /// [LoginScreen]
-class LoginRoute extends PageRouteInfo<void> {
-  const LoginRoute({List<PageRouteInfo>? children})
-    : super(LoginRoute.name, initialChildren: children);
+class LoginRoute extends PageRouteInfo<LoginRouteArgs> {
+  LoginRoute({
+    Key? key,
+    required dynamic Function()? onTap,
+    List<PageRouteInfo>? children,
+  }) : super(
+         LoginRoute.name,
+         args: LoginRouteArgs(key: key, onTap: onTap),
+         initialChildren: children,
+       );
 
   static const String name = 'LoginRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const LoginScreen();
+      final args = data.argsAs<LoginRouteArgs>();
+      return LoginScreen(key: args.key, onTap: args.onTap);
     },
   );
 }
 
+class LoginRouteArgs {
+  const LoginRouteArgs({this.key, required this.onTap});
+
+  final Key? key;
+
+  final dynamic Function()? onTap;
+
+  @override
+  String toString() {
+    return 'LoginRouteArgs{key: $key, onTap: $onTap}';
+  }
+}
+
 /// generated route for
 /// [RegisterScreen]
-class RegisterRoute extends PageRouteInfo<void> {
-  const RegisterRoute({List<PageRouteInfo>? children})
-    : super(RegisterRoute.name, initialChildren: children);
+class RegisterRoute extends PageRouteInfo<RegisterRouteArgs> {
+  RegisterRoute({
+    Key? key,
+    required dynamic Function()? onTap,
+    List<PageRouteInfo>? children,
+  }) : super(
+         RegisterRoute.name,
+         args: RegisterRouteArgs(key: key, onTap: onTap),
+         initialChildren: children,
+       );
 
   static const String name = 'RegisterRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const RegisterScreen();
+      final args = data.argsAs<RegisterRouteArgs>();
+      return RegisterScreen(key: args.key, onTap: args.onTap);
     },
   );
+}
+
+class RegisterRouteArgs {
+  const RegisterRouteArgs({this.key, required this.onTap});
+
+  final Key? key;
+
+  final dynamic Function()? onTap;
+
+  @override
+  String toString() {
+    return 'RegisterRouteArgs{key: $key, onTap: $onTap}';
+  }
 }
