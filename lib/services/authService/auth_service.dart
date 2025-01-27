@@ -7,6 +7,7 @@ class AuthService {
 
   // Google sign in
   singInWithGoogle() async {
+    print('sigj in with google');
     try {
       // Begin interactive sign in process
       final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
