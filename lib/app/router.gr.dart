@@ -53,7 +53,7 @@ class HomeRoute extends PageRouteInfo<void> {
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const HomeScreen();
+      return HomeScreen();
     },
   );
 }
@@ -93,6 +93,22 @@ class LoginRouteArgs {
   String toString() {
     return 'LoginRouteArgs{key: $key, onTap: $onTap}';
   }
+}
+
+/// generated route for
+/// [MapScreen]
+class MapRoute extends PageRouteInfo<void> {
+  const MapRoute({List<PageRouteInfo>? children})
+    : super(MapRoute.name, initialChildren: children);
+
+  static const String name = 'MapRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const MapScreen();
+    },
+  );
 }
 
 /// generated route for

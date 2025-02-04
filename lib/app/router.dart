@@ -3,6 +3,7 @@ import 'package:walkies/screens/homeScreen/home_screen.dart';
 import 'package:walkies/screens/loginScreen/login_screen.dart';
 import 'package:walkies/screens/registerScreen/register_screen.dart';
 import 'package:walkies/screens/authScreen/auth_screen.dart';
+import 'package:walkies/screens/mapScreen/map_screen.dart';
 import 'package:walkies/screens/forgotPasswordScreen/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
 part 'router.gr.dart';
@@ -26,6 +27,9 @@ class AppRouter extends RootStackRouter {
         AutoRoute(
           page: AuthRoute.page,
           initial: true,
+        ),
+        AutoRoute(
+          page: MapRoute.page,
         )
       ];
 }

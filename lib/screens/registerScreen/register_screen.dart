@@ -189,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     SquareTile(
                         onTap: () => AuthService().singInWithGoogle(),
                         imagePath: 'assets/images/google.png'),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     SquareTile(
                         onTap: () => AuthService().signInWithApple(),
                         imagePath: 'assets/images/apple.png')

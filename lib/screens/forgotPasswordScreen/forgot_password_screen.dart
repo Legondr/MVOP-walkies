@@ -1,9 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:walkies/components/custom_textfield.dart';
 import 'package:walkies/components/custom_button.dart';
+import 'dart:developer';
 
 @RoutePage()
 class ForgotPasswordScreen extends StatefulWidget {
@@ -26,16 +26,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       await FirebaseAuth.instance
           .sendPasswordResetEmail(email: emailController.text.trim());
+      if (!mounted) {
+        return;
+      }
       showDialog(
         context: context,
         builder: (context) {
-          return AlertDialog(
+          return const AlertDialog(
             content: Text('Password reset link sent! Check your Email'),
           );
         },
       );
     } on FirebaseAuthException catch (e) {
-      print(e);
+      log(e.toString());
       showDialog(
         context: context,
         builder: (context) {

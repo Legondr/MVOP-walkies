@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:walkies/screens/forgotPasswordScreen/forgot_password_screen.dart';
 import 'package:walkies/services/authService/auth_service.dart';
+import 'dart:developer';
 //import 'package:google_sign_in/google_sign_in.dart';
 
 @RoutePage()
@@ -93,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Finaly sign in
       return await _firebaseAuth.signInWithCredential(credential);
     } catch (e) {
-      print(e);
+      log(e.toString());
     }
   }
 
