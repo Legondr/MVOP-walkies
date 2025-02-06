@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 //import 'package:walkies/screens/loginScreen/login_screen.dart';
 //import 'package:walkies/screens/registerScreen/register_screen.dart';
-//import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:walkies/screens/mapScreen/map_screen.dart';
 
 @RoutePage()
@@ -63,11 +63,30 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      // Navigate back to the login screen after signing out
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+            context, '/login'); // Adjust route name as needed
+      }
+    } catch (e) {
+      debugPrint("Error signing out: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Walkies'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _signOut,
+          ),
+        ],
       ),
       body: Center(
         child: Column(

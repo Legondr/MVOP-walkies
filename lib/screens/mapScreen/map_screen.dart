@@ -1,8 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-//import 'package:walkies/services/locationService/location_service.dart';
+import 'package:provider/provider.dart';
+import 'package:walkies/services/trackPositionService/track_position_service.dart';
 import 'dart:async';
 
 @RoutePage()
@@ -16,68 +16,92 @@ class MapScreen extends StatefulWidget {
 class MapScreenState extends State<MapScreen> {
   final Completer<GoogleMapController> _controller = Completer();
   late GoogleMapController mapController;
-  LatLng _currentPosition = const LatLng(51.509865, -0.118092);
-  bool _isLoading = true;
-
-  Future<void> _updateMapLocation() async {
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      LatLng currentLocation = LatLng(position.latitude, position.longitude);
-
-      debugPrint(
-          "Fetched Location: ${position.latitude}, ${position.longitude}");
-
-      setState(() {
-        _currentPosition = currentLocation;
-        _isLoading = false;
-      });
-
-      // Ensure controller is initialized before using it
-      final GoogleMapController controller = await _controller.future;
-      controller.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentPosition, 15.0),
-      );
-    } catch (e) {
-      debugPrint("Error fetching location: ${e.toString()}");
-    }
-  }
+  Set<Polyline> _polylines = {};
 
   @override
   void initState() {
     super.initState();
-    _updateMapLocation();
+    Future.delayed(Duration.zero, () async {
+      LatLng startLocation =
+          await Provider.of<TrackPositionService>(context, listen: false)
+              .getCurrentLocation();
+
+      if (_controller.isCompleted) {
+        final GoogleMapController controller = await _controller.future;
+        controller.animateCamera(CameraUpdate.newLatLngZoom(startLocation, 15));
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Walkies - Route'),
+    var trackingService = Provider.of<TrackPositionService>(context);
+
+    // Update route when new locations arrive
+    _polylines = {
+      Polyline(
+        polylineId: const PolylineId("userRoute"),
+        points: trackingService.routeCoordinates,
+        color: Colors.blue,
+        width: 5,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              onMapCreated: (GoogleMapController controller) {
-                _controller.complete(controller);
-                _updateMapLocation(); // Fetch location after map loads
-              },
-              initialCameraPosition: CameraPosition(
-                target: _currentPosition,
-                zoom: 15.0,
-              ),
-              markers: {
+    };
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Walkies - Live Tracking')),
+      body: Stack(
+        children: [
+          GoogleMap(
+            onMapCreated: (GoogleMapController controller) {
+              _controller.complete(controller);
+              mapController = controller;
+            },
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(0.0, 0.0),
+              zoom: 15.0,
+            ),
+            markers: {
+              if (trackingService.routeCoordinates.isNotEmpty)
                 Marker(
                   markerId: const MarkerId('currentLocation'),
-                  position: _currentPosition,
+                  position: trackingService.routeCoordinates.last,
                   infoWindow: const InfoWindow(title: "You are here"),
                 ),
-              },
+            },
+            polylines: _polylines,
+          ),
+          Positioned(
+            bottom: 20,
+            left: 20,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 200,
+                  height: 60,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (trackingService.isTracking) {
+                        trackingService.stopTracking(); // Stop tracking
+                      } else {
+                        trackingService.startTracking(); // Start tracking
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: trackingService.isTracking
+                          ? Colors.red
+                          : Colors.green,
+                    ),
+                    child: Text(
+                      trackingService.isTracking ? "Stop" : "Start",
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }
