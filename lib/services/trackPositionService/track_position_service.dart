@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class TrackPositionService extends ChangeNotifier {
   bool _isTracking = false;
-  List<LatLng> _routeCoordinates = [];
+  final List<LatLng> _routeCoordinates = [];
   StreamSubscription<Position>? _positionStream;
 
   bool get isTracking => _isTracking;

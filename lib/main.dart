@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:walkies/services/trackPositionService/track_position_service.dart';
+import 'package:walkies/services/routeGenerationService/route_generation_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +12,19 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(MainApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<TrackPositionService>(
+          create: (context) => TrackPositionService(),
+        ),
+        ChangeNotifierProvider<RouteGenerationService>(
+          create: (context) => RouteGenerationService(),
+        ),
+      ],
+      child: MainApp(),
+    ),
+  );
 }
 
 class MainApp extends StatelessWidget {
