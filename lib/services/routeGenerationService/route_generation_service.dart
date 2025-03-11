@@ -1,111 +1,210 @@
+import 'dart:convert';
 import 'dart:math';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RouteGenerationService extends ChangeNotifier {
-  final Random _random = Random();
+  static const String _apiKey = "AIzaSyDDgt0QnrDwiztOKcB9PLa-SMlmLrYQmNE";
+  static const double _walkingSpeed = 1.4; // Average walking speed in m/s
 
-  /// **Generate a random route based on a given distance (in meters)**
+  /// Generates a walking route based on distance (circular path)
   Future<List<LatLng>> generateRouteByDistance(
-      LatLng startLocation, double desiredDistance) async {
-    List<LatLng> route = [];
-    double totalDistance = 0.0;
-    LatLng currentLocation = startLocation;
-    route.add(currentLocation);
+      LatLng start, double distance, int numPoints) async {
+    return await _fetchCircularRoute(start, distance, numPoints);
+  }
 
-    while (totalDistance < desiredDistance) {
-      // Generate a random point nearby
-      LatLng newPoint = _generateRandomPointNearby(
-          currentLocation, 50, 150); // Random step size between 50m - 150m
+  /// Generates a walking route based on time (circular path)
+  Future<List<LatLng>> generateRouteByTime(
+      LatLng start, int timeInSeconds, int numPoints) async {
+    double estimatedDistance =
+        _estimateDistance(timeInSeconds); // Convert time to distance
+    return await _fetchCircularRoute(start, estimatedDistance, numPoints);
+  }
 
-      // Calculate distance to the new point
-      double distanceToNewPoint = _calculateDistance(currentLocation, newPoint);
+  String _formatWaypoints(List<LatLng> waypoints) {
+    return waypoints
+        .map((point) => "via:${point.latitude},${point.longitude}")
+        .join("|");
+  }
 
-      if (totalDistance + distanceToNewPoint <= desiredDistance) {
-        totalDistance += distanceToNewPoint;
-        route.add(newPoint);
-        currentLocation = newPoint;
+  Future<List<LatLng>> getWalkingRoute(LatLng start, LatLng end) async {
+    final Uri url = Uri.https(
+      "maps.googleapis.com",
+      "/maps/api/directions/json",
+      {
+        "origin": "${start.latitude},${start.longitude}",
+        "destination": "${end.latitude},${end.longitude}",
+        "mode": "walking",
+        "key": _apiKey,
+      },
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (data['routes'].isEmpty) {
+        debugPrint("Google Directions API Response: ${response.body}");
+        throw Exception("No routes found.");
+      }
+
+      debugPrint("Request URL: $url");
+      debugPrint("Response: ${response.body}");
+
+      final overviewPolyline = data['routes'][0]['overview_polyline']['points'];
+      debugPrint("Polyline: $overviewPolyline");
+
+      final List<LatLng> routePoints = _decodePolyline(overviewPolyline);
+
+      if (routePoints.isEmpty) {
+        debugPrint("Decoded route points are empty!");
+      }
+
+      return routePoints;
+    } else {
+      throw Exception("Failed to load route");
+    }
+  }
+
+  /// Decodes a polyline string into a list of LatLng points
+  List<LatLng> _decodePolyline(String polyline) {
+    List<LatLng> polylinePoints = [];
+    int index = 0, len = polyline.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int shift = 0, result = 0;
+      while (true) {
+        int code = polyline.codeUnitAt(index) - 63;
+        index++;
+        result |= (code & 0x1f) << shift;
+        shift += 5;
+        if (code < 0x20) break;
+      }
+      int dLat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lat += dLat;
+
+      shift = 0;
+      result = 0;
+      while (true) {
+        int code = polyline.codeUnitAt(index) - 63;
+        index++;
+        result |= (code & 0x1f) << shift;
+        shift += 5;
+        if (code < 0x20) break;
+      }
+      int dLng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lng += dLng;
+
+      polylinePoints.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+
+    return polylinePoints;
+  }
+
+  /// Estimates the total distance from the walking time (using the walking speed)
+  double _estimateDistance(int timeInSeconds) {
+    return timeInSeconds * _walkingSpeed; // distance = time * speed
+  }
+
+  /// Generates waypoints in a circular pattern around the start point based on the total desired distance
+  List<LatLng> _generateCircularWaypoints(
+      LatLng center, double totalDistance, int numPoints) {
+    List<LatLng> waypoints = [];
+
+    // Calculate the distance between consecutive waypoints
+    double distancePerPoint = totalDistance / numPoints;
+
+    // Approximate the angular distance between consecutive waypoints on the circle
+    double angleIncrement = 2 * pi / numPoints;
+
+    // Generate waypoints
+    for (int i = 0; i < numPoints; i++) {
+      double angle = i * angleIncrement;
+      double radius = distancePerPoint / angleIncrement;
+
+      double latOffset =
+          radius * cos(angle) / 111000; // Convert meters to degrees
+      double lngOffset =
+          radius * sin(angle) / (111000 * cos(center.latitude * pi / 180));
+
+      LatLng waypoint =
+          LatLng(center.latitude + latOffset, center.longitude + lngOffset);
+
+      // You can optionally call a function to validate the waypoint here
+      if (_isValidWaypoint(waypoint)) {
+        waypoints.add(waypoint);
       } else {
-        break;
+        // If the waypoint is invalid, retry generating it or adjust the angle
+        i--; // Retry this waypoint if invalid
       }
     }
-    debugPrint("Generated Route: $route");
-    return route;
+
+    return waypoints;
   }
 
-  /// **Generate a random route based on a given duration (in seconds)**
-  Future<List<LatLng>> generateRouteByTime(
-      LatLng startLocation, int durationInSeconds) async {
-    List<LatLng> route = [];
-    LatLng currentLocation = startLocation;
-    route.add(currentLocation);
-
-    int timeElapsed = 0;
-    int averageWalkingSpeed = 1; // In meters per second (~3.6 km/h)
-
-    while (timeElapsed < durationInSeconds) {
-      // Calculate step size based on walking speed (assuming avg 1m per second)
-      double stepSize = averageWalkingSpeed *
-          30.0; // Each step moves ~30 seconds worth of distance
-
-      // Generate a new point nearby with the step size
-      LatLng newPoint = _generateRandomPointNearby(
-          currentLocation, stepSize * 0.8, stepSize * 1.2);
-
-      // Simulate time by adding 30 seconds per step
-      timeElapsed += 30;
-      route.add(newPoint);
-      currentLocation = newPoint;
-    }
-    debugPrint("Generated Route: $route");
-    return route;
+  /// A helper function to check if a waypoint is valid
+  /// You can call Google Maps Geocoding API here to check if the location is walkable
+  bool _isValidWaypoint(LatLng waypoint) {
+    return true; // Placeholder for actual validation logic
   }
 
-  /// **Generate a random nearby point based on a given step size**
-  LatLng _generateRandomPointNearby(
-      LatLng origin, double minDistance, double maxDistance) {
-    double distance =
-        minDistance + _random.nextDouble() * (maxDistance - minDistance);
-    double bearing = _random.nextDouble() * 360; // Random direction
+  /// Fetches a circular route using waypoints and Google Directions API with a check for dead ends
+  Future<List<LatLng>> _fetchCircularRoute(
+      LatLng start, double distance, int numPoints) async {
+    List<LatLng> waypoints =
+        _generateCircularWaypoints(start, distance, numPoints);
 
-    return _calculateNewPosition(origin, distance, bearing);
-  }
+    // Ensure that all waypoints are connected in a valid route before proceeding
+    LatLng end = start; // Ensuring circular route
 
-  /// **Calculate the new LatLng position based on distance and bearing**
-  LatLng _calculateNewPosition(LatLng start, double distance, double bearing) {
-    const double earthRadius = 6371000; // Earth's radius in meters
-    double lat1 = _degreesToRadians(start.latitude);
-    double lon1 = _degreesToRadians(start.longitude);
-    double bearingRad = _degreesToRadians(bearing);
-
-    double lat2 = asin(sin(lat1) * cos(distance / earthRadius) +
-        cos(lat1) * sin(distance / earthRadius) * cos(bearingRad));
-
-    double lon2 = lon1 +
-        atan2(sin(bearingRad) * sin(distance / earthRadius) * cos(lat1),
-            cos(distance / earthRadius) - sin(lat1) * sin(lat2));
-
-    return LatLng(_radiansToDegrees(lat2), _radiansToDegrees(lon2));
-  }
-
-  /// **Calculate distance between two LatLng points in meters**
-  double _calculateDistance(LatLng start, LatLng end) {
-    return Geolocator.distanceBetween(
-      start.latitude,
-      start.longitude,
-      end.latitude,
-      end.longitude,
+    final Uri url = Uri.https(
+      "maps.googleapis.com",
+      "/maps/api/directions/json",
+      {
+        "origin": "${start.latitude},${start.longitude}",
+        "destination": "${end.latitude},${end.longitude}",
+        "mode": "walking",
+        "key": _apiKey,
+        "waypoints": "optimize:true|${_formatWaypoints(waypoints)}",
+        "avoid": "highways|tolls",
+        "optimize_waypoints":
+            "false", // Prevents Google from rearranging waypoints
+      },
     );
+
+    debugPrint("Generated URL: $url");
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (data['routes'].isEmpty) {
+        debugPrint("Google Directions API Response: ${response.body}");
+        throw Exception(
+            "No routes found. Check if walking routes are available.");
+      }
+
+      debugPrint("Request URL: $url");
+      debugPrint("Response: ${response.body}");
+
+      // Decode polyline points
+      return _decodePolyline(data['routes'][0]['overview_polyline']['points']);
+    } else {
+      throw Exception("Failed to load route");
+    }
   }
 
-  /// **Convert degrees to radians**
-  double _degreesToRadians(double degrees) {
-    return degrees * pi / 180.0;
-  }
-
-  /// **Convert radians to degrees**
-  double _radiansToDegrees(double radians) {
-    return radians * 180.0 / pi;
+  /// Creates a marker to indicate the start of the route
+  Marker createStartMarker(LatLng start) {
+    return Marker(
+      markerId: const MarkerId("start_marker"),
+      position: start,
+      infoWindow: const InfoWindow(title: "Start of Route"),
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+          BitmapDescriptor.hueGreen), // Green color for the start
+    );
   }
 }
