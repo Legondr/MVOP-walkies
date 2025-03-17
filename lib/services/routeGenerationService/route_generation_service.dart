@@ -122,7 +122,7 @@ class RouteGenerationService extends ChangeNotifier {
     // Generate waypoints
     for (int i = 0; i < numPoints; i++) {
       double angle = i * angleIncrement;
-      double radius = distancePerPoint / angleIncrement;
+      double radius = totalDistance / (2 * pi);
 
       double latOffset =
           radius * cos(angle) / 111000; // Convert meters to degrees
