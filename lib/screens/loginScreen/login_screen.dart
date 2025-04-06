@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Login text
-                const SizedBox(height: 100),
+                const SizedBox(height: 75),
                 const Text(
                   'Login',
                   style: TextStyle(
@@ -124,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 // Email text field
-                const SizedBox(height: 100),
+                const SizedBox(height: 75),
                 CustomTextField(
                   controller: emailController,
                   hintText: 'Email',
@@ -162,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           'Forgot password?',
                           style: TextStyle(
-                            color: Color.fromARGB(255, 3, 192, 244),
+                            color: Color.fromARGB(255, 100, 98, 98),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -220,11 +220,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     //Placeholder for Google or Apple buttons
                     SquareTile(
                         onTap: () => AuthService().singInWithGoogle(),
-                        imagePath: 'assets/images/google.png'),
+                        imagePath: 'assets/images/googleLogo.png'),
                     const SizedBox(width: 10),
                     SquareTile(
                         onTap: () => AuthService().signInWithApple(),
-                        imagePath: 'assets/images/apple.png')
+                        imagePath: 'assets/images/appleLogo.png'),
                   ],
                 ),
 

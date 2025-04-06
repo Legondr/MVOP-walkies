@@ -10,16 +10,20 @@ class RouteGenerationService extends ChangeNotifier {
 
   /// Generates a walking route based on distance (circular path)
   Future<List<LatLng>> generateRouteByDistance(
-      LatLng start, double distance, int numPoints) async {
-    return await _fetchCircularRoute(start, distance, numPoints);
+      LatLng start, double distance) async {
+    debugPrint("Generating route with distance = $distance");
+
+    return await _fetchCircularRoute(start, distance);
   }
 
   /// Generates a walking route based on time (circular path)
   Future<List<LatLng>> generateRouteByTime(
-      LatLng start, int timeInSeconds, int numPoints) async {
+      LatLng start, int timeInSeconds) async {
+    debugPrint("Generating route with time in seconds = $timeInSeconds");
+
     double estimatedDistance =
         _estimateDistance(timeInSeconds); // Convert time to distance
-    return await _fetchCircularRoute(start, estimatedDistance, numPoints);
+    return await _fetchCircularRoute(start, estimatedDistance);
   }
 
   String _formatWaypoints(List<LatLng> waypoints) {
@@ -45,15 +49,15 @@ class RouteGenerationService extends ChangeNotifier {
       final data = json.decode(response.body);
 
       if (data['routes'].isEmpty) {
-        debugPrint("Google Directions API Response: ${response.body}");
+        //debugPrint("Google Directions API Response: ${response.body}");
         throw Exception("No routes found.");
       }
 
-      debugPrint("Request URL: $url");
-      debugPrint("Response: ${response.body}");
+      //debugPrint("Request URL: $url");
+      //debugPrint("Response: ${response.body}");
 
       final overviewPolyline = data['routes'][0]['overview_polyline']['points'];
-      debugPrint("Polyline: $overviewPolyline");
+      //debugPrint("Polyline: $overviewPolyline");
 
       final List<LatLng> routePoints = _decodePolyline(overviewPolyline);
 
@@ -109,92 +113,102 @@ class RouteGenerationService extends ChangeNotifier {
   }
 
   /// Generates waypoints in a circular pattern around the start point based on the total desired distance
-  List<LatLng> _generateCircularWaypoints(
-      LatLng center, double totalDistance, int numPoints) {
+  Future<List<LatLng>> _generateCircularWaypoints(
+      LatLng center, double totalDistance) async {
+    debugPrint('Generating circular waypoints');
     List<LatLng> waypoints = [];
 
-    // Calculate the distance between consecutive waypoints
-    double distancePerPoint = totalDistance / numPoints;
+    int numPoints = 8; // More points = smoother circular route
+    double estimatedRadius =
+        (totalDistance / (2 * pi)); // Approximate circular radius
+    Random random = Random();
 
-    // Approximate the angular distance between consecutive waypoints on the circle
-    double angleIncrement = 2 * pi / numPoints;
-
-    // Generate waypoints
     for (int i = 0; i < numPoints; i++) {
-      double angle = i * angleIncrement;
-      double radius = totalDistance / (2 * pi);
+      double angle = (i * 2 * pi / numPoints) +
+          (random.nextDouble() * pi / 8); // Random offset
 
-      double latOffset =
-          radius * cos(angle) / 111000; // Convert meters to degrees
+      // Adjust radius dynamically for variation
+      double radius = estimatedRadius *
+          (0.9 + random.nextDouble() * 0.2); // 90%-110% random range
+
+      // Convert meters to latitude/longitude degrees
+      double latOffset = (radius * cos(angle) / 111000);
       double lngOffset =
-          radius * sin(angle) / (111000 * cos(center.latitude * pi / 180));
+          (radius * sin(angle) / (111000 * cos(center.latitude * pi / 180)));
 
       LatLng waypoint =
           LatLng(center.latitude + latOffset, center.longitude + lngOffset);
 
-      // You can optionally call a function to validate the waypoint here
-      if (_isValidWaypoint(waypoint)) {
+      if (await _isValidWaypoint(waypoint)) {
         waypoints.add(waypoint);
       } else {
-        // If the waypoint is invalid, retry generating it or adjust the angle
-        i--; // Retry this waypoint if invalid
+        i--; // Retry with a new random point
       }
     }
 
+    debugPrint('Generated waypoints: $waypoints');
     return waypoints;
   }
 
-  /// A helper function to check if a waypoint is valid
-  /// You can call Google Maps Geocoding API here to check if the location is walkable
-  bool _isValidWaypoint(LatLng waypoint) {
-    return true; // Placeholder for actual validation logic
-  }
-
-  /// Fetches a circular route using waypoints and Google Directions API with a check for dead ends
+  /// Fetches a circular route and adjusts based on length
   Future<List<LatLng>> _fetchCircularRoute(
-      LatLng start, double distance, int numPoints) async {
-    List<LatLng> waypoints =
-        _generateCircularWaypoints(start, distance, numPoints);
+      LatLng start, double targetDistance) async {
+    debugPrint('Fetching circular route.');
 
-    // Ensure that all waypoints are connected in a valid route before proceeding
-    LatLng end = start; // Ensuring circular route
+    const int maxRetries = 25;
+    const double tolerance = 0.1; // 10% error allowed
 
-    final Uri url = Uri.https(
-      "maps.googleapis.com",
-      "/maps/api/directions/json",
-      {
-        "origin": "${start.latitude},${start.longitude}",
-        "destination": "${end.latitude},${end.longitude}",
-        "mode": "walking",
-        "key": _apiKey,
-        "waypoints": "optimize:true|${_formatWaypoints(waypoints)}",
-        "avoid": "highways|tolls",
-        "optimize_waypoints":
-            "false", // Prevents Google from rearranging waypoints
-      },
-    );
+    double radiusFactor = 1.0;
 
-    debugPrint("Generated URL: $url");
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      debugPrint("Attempt $attempt with radius factor $radiusFactor");
 
-    final response = await http.get(url);
+      // Generate waypoints using adjusted radius
+      List<LatLng> waypoints = await _generateCircularWaypoints(
+        start,
+        targetDistance * radiusFactor,
+      );
 
-    if (response.statusCode == 200) {
+      final Uri url = Uri.https(
+        "maps.googleapis.com",
+        "/maps/api/directions/json",
+        {
+          "origin": "${start.latitude},${start.longitude}",
+          "destination":
+              "${start.latitude},${start.longitude}", // circular route
+          "mode": "walking",
+          "key": _apiKey,
+          "waypoints": "optimize:true|${_formatWaypoints(waypoints)}",
+          "avoid": "highways|tolls",
+        },
+      );
+
+      final response = await http.get(url);
+
+      if (response.statusCode != 200) continue;
+
       final data = json.decode(response.body);
+      if (data['routes'].isEmpty) continue;
 
-      if (data['routes'].isEmpty) {
-        debugPrint("Google Directions API Response: ${response.body}");
-        throw Exception(
-            "No routes found. Check if walking routes are available.");
+      List<LatLng> routePoints =
+          _decodePolyline(data['routes'][0]['overview_polyline']['points']);
+      double actualDistance = _calculateTotalDistance(routePoints);
+
+      debugPrint("Generated route length: $actualDistance m");
+
+      double error = actualDistance - targetDistance;
+      double errorPercent = error.abs() / targetDistance;
+
+      if (errorPercent <= tolerance) {
+        debugPrint("Acceptable route found!");
+        return routePoints;
       }
 
-      debugPrint("Request URL: $url");
-      debugPrint("Response: ${response.body}");
-
-      // Decode polyline points
-      return _decodePolyline(data['routes'][0]['overview_polyline']['points']);
-    } else {
-      throw Exception("Failed to load route");
+      // Adjust radiusFactor based on over/under
+      radiusFactor *= (targetDistance / actualDistance);
     }
+
+    throw Exception("Failed to generate a route within acceptable distance.");
   }
 
   /// Creates a marker to indicate the start of the route
@@ -206,5 +220,77 @@ class RouteGenerationService extends ChangeNotifier {
       icon: BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueGreen), // Green color for the start
     );
+  }
+
+  /// Calculate total distance of a route given a list of LatLng points
+  double _calculateTotalDistance(List<LatLng> points) {
+    double totalDistance = 0.0;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      totalDistance += _haversineDistance(points[i], points[i + 1]);
+    }
+
+    return totalDistance;
+  }
+
+  /// Calculate the Haversine distance between two LatLng points
+  double _haversineDistance(LatLng p1, LatLng p2) {
+    const double R = 6371000; // Earth radius in meters
+    double lat1 = p1.latitude * pi / 180;
+    double lon1 = p1.longitude * pi / 180;
+    double lat2 = p2.latitude * pi / 180;
+    double lon2 = p2.longitude * pi / 180;
+
+    double dLat = lat2 - lat1;
+    double dLon = lon2 - lon1;
+
+    double a =
+        pow(sin(dLat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dLon / 2), 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return R * c;
+  }
+
+  Future<bool> _isValidWaypoint(LatLng waypoint) async {
+    final Uri url = Uri.https("maps.googleapis.com", "/maps/api/geocode/json", {
+      "latlng": "${waypoint.latitude},${waypoint.longitude}",
+      "key": _apiKey,
+    });
+
+    //debugPrint('Checking waypoint validity: $url');
+
+    final response = await http.get(url);
+
+    //debugPrint('Response status: ${response.statusCode}');
+    //debugPrint('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (data['results'].isNotEmpty) {
+        final firstResult = data['results'][0];
+        final types = firstResult['types'] as List<dynamic>? ?? [];
+
+        //debugPrint('Waypoint types: $types');
+
+        return types.any((type) => [
+              'street_address',
+              'route',
+              'park',
+              'neighborhood',
+              'sublocality',
+              'locality',
+              'point_of_interest',
+              'natural_feature',
+              'establishment',
+              'premise',
+              'tourist_attraction',
+              'place_of_worship'
+            ].contains(type));
+      }
+    }
+
+    debugPrint('Waypoint is invalid');
+    return false; // Default to invalid if response fails
   }
 }

@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:walkies/services/routeGenerationService/route_generation_service.dart';
 import 'package:walkies/services/trackPositionService/track_position_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 
+@RoutePage()
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -19,21 +22,65 @@ class MapScreenState extends State<MapScreen> {
   final Set<Polyline> _polylines = {};
   late LatLng startLocation;
 
+  late Future<LatLng> _initialLocationFuture;
+
   @override
   void initState() {
     super.initState();
+    _initialLocationFuture =
+        Provider.of<TrackPositionService>(context, listen: false)
+            .getCurrentLocation();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get the current user from Firebase Auth
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Walkies - Live Tracking')),
+      appBar: AppBar(
+        title: const Text('Walkies'),
+        leading: Builder(
+          builder: (context) {
+            return IconButton(
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+              icon: const Icon(Icons.menu),
+            );
+          },
+        ),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            // Optional: Add a header with user profile information
+            UserAccountsDrawerHeader(
+              accountName: const Text(''),
+              accountEmail: Text(currentUser?.email ?? 'youremail@example.com'),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, size: 50),
+              ),
+            ),
+            // Add Drawer items
+
+            ListTile(
+              title: const Text('Log Out'),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                _signOut(); // Sign out
+              },
+            ),
+          ],
+        ),
+      ),
       body: Consumer<TrackPositionService>(
         builder: (context, trackingService, child) {
           // We are using FutureBuilder to wait for the start location
           return FutureBuilder<LatLng>(
-            future: Provider.of<TrackPositionService>(context, listen: false)
-                .getCurrentLocation(),
+            future: _initialLocationFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -169,6 +216,9 @@ class MapScreenState extends State<MapScreen> {
 
   void _showDistanceInputDialog(BuildContext context) {
     TextEditingController distanceController = TextEditingController();
+    debugPrint(
+        "Generate route by distance called with distance: ${distanceController.text}");
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -188,6 +238,8 @@ class MapScreenState extends State<MapScreen> {
             ),
             TextButton(
               onPressed: () async {
+                debugPrint('Generating route');
+
                 double? distance = double.tryParse(distanceController.text);
                 if (distance != null && distance > 0) {
                   Navigator.of(context).pop();
@@ -196,12 +248,10 @@ class MapScreenState extends State<MapScreen> {
                       await Provider.of<TrackPositionService>(context,
                               listen: false)
                           .getCurrentLocation();
-                  int numPoints = 20;
+
                   // Generate an endpoint by moving "distance" meters away (mock logic)
                   List<LatLng> waypoints = await RouteGenerationService()
-                      .generateRouteByDistance(
-                          startLocation, distance, numPoints);
-
+                      .generateRouteByDistance(startLocation, distance);
                   // Ensure loop closure by adding start location at the end
                   waypoints.add(startLocation);
 
@@ -218,6 +268,8 @@ class MapScreenState extends State<MapScreen> {
 
   void _showTimeInputDialog(BuildContext context) {
     TextEditingController timeController = TextEditingController();
+    debugPrint(
+        "Generate route by time called with time: ${timeController.text}");
 
     showDialog(
       context: context,
@@ -238,6 +290,8 @@ class MapScreenState extends State<MapScreen> {
             ),
             TextButton(
               onPressed: () async {
+                debugPrint('Generating route');
+
                 if (!mounted) return;
 
                 final currentContext = context; // Capture context
@@ -247,7 +301,6 @@ class MapScreenState extends State<MapScreen> {
                   Navigator.of(currentContext).pop(); // Pop before async call
 
                   int durationInSeconds = timeInMinutes * 60;
-                  int numPoints = 20;
 
                   // Fetch services *before* async calls to avoid context issues
                   final trackPositionService =
@@ -272,12 +325,10 @@ class MapScreenState extends State<MapScreen> {
                       await routeGenerationService.generateRouteByTime(
                     startLocation,
                     durationInSeconds,
-                    numPoints,
                   );
 
                   // Close the loop
                   waypoints.add(startLocation);
-
                   if (!mounted) return;
                   _updateRouteOnMap(waypoints);
                 }
@@ -314,6 +365,10 @@ class MapScreenState extends State<MapScreen> {
       );
     });
 
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {}); // Force UI update
+    });
+
     _moveCameraToRoute(route);
   }
 
@@ -348,6 +403,19 @@ class MapScreenState extends State<MapScreen> {
     controller.animateCamera(
       CameraUpdate.newLatLngBounds(_getBounds(route), 50),
     );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      // Navigate back to the login screen after signing out
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+            context, '/login'); // Adjust route name as needed
+      }
+    } catch (e) {
+      debugPrint("Error signing out: $e");
+    }
   }
 }
 

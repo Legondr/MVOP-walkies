@@ -1,5 +1,4 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:walkies/screens/homeScreen/home_screen.dart';
 import 'package:walkies/screens/loginScreen/login_screen.dart';
 import 'package:walkies/screens/registerScreen/register_screen.dart';
 import 'package:walkies/screens/authScreen/auth_screen.dart';
@@ -17,9 +16,6 @@ class AppRouter extends RootStackRouter {
         ),
         AutoRoute(
           page: RegisterRoute.page,
-        ),
-        AutoRoute(
-          page: HomeRoute.page,
         ),
         AutoRoute(
           page: ForgotPasswordRoute.page,

@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:walkies/components/custom_button.dart';
 import 'package:walkies/components/custom_textfield.dart';
 import 'package:walkies/components/square_tile.dart';
+import 'package:walkies/screens/forgotPasswordScreen/forgot_password_screen.dart';
 import 'package:walkies/services/authService/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -98,16 +99,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Login text
-                const SizedBox(height: 100),
+                const SizedBox(height: 50),
                 const Text(
-                  'Login',
+                  'Register',
                   style: TextStyle(
                     fontSize: 45,
                   ),
                 ),
 
                 // Email text field
-                const SizedBox(height: 100),
+                const SizedBox(height: 50),
                 CustomTextField(
                   controller: emailController,
                   hintText: 'Email',
@@ -128,15 +129,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
 
                 // Forget password
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'Forgot password?',
-                        style: TextStyle(
-                          color: Color.fromARGB(255, 100, 98, 98),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) {
+                                return const ForgotPasswordScreen();
+                              },
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: Color.fromARGB(255, 100, 98, 98),
+                          ),
                         ),
                       ),
                     ],
@@ -188,11 +201,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     //Placeholder for Google or Apple buttons
                     SquareTile(
                         onTap: () => AuthService().singInWithGoogle(),
-                        imagePath: 'assets/images/google.png'),
+                        imagePath: 'assets/images/googleLogo.png'),
                     const SizedBox(width: 10),
                     SquareTile(
                         onTap: () => AuthService().signInWithApple(),
-                        imagePath: 'assets/images/apple.png')
+                        imagePath: 'assets/images/appleLogo.png')
                   ],
                 ),
 

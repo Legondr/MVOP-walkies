@@ -14,12 +14,12 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17  // Updated to Java 17
+        targetCompatibility = JavaVersion.VERSION_17  // Updated to Java 17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = "17" // Updated to Java 17 (string value)
     }
 
     defaultConfig {
@@ -38,6 +38,9 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
+            minifyEnabled true  // Enable minification for release builds (optional, but recommended)
+            shrinkResources true // Enable resource shrinking (optional, but recommended with minification)
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' // Add this line
         }
     }
 }

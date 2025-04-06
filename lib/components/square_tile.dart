@@ -24,7 +24,6 @@ class SquareTile extends StatelessWidget {
           imagePath,
           height: 40,
           width: 40,
-          // color: Colors.transparent,
         ),
       ),
     );
