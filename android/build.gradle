@@ -6,6 +6,7 @@ buildscript {
     dependencies {
         // Update this line to use a newer AGP version
         classpath 'com.android.tools.build:gradle:8.2.1'  // Set AGP version to 8.2.1 or higher
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0' // optional for Kotlin
     }
 }
 

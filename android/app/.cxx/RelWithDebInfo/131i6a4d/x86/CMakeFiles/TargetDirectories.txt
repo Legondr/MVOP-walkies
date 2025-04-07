@@ -1,0 +1,2 @@
+/Users/jindralego/Desktop/projects/walkies/android/app/.cxx/RelWithDebInfo/131i6a4d/x86/CMakeFiles/edit_cache.dir
+/Users/jindralego/Desktop/projects/walkies/android/app/.cxx/RelWithDebInfo/131i6a4d/x86/CMakeFiles/rebuild_cache.dir
